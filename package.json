@@ -1,0 +1,30 @@
+{
+  "name": "fuel-prices-analytics-api",
+  "version": "1.0.0",
+  "description": "ETL + REST API for Brazilian fuel prices (ANP open data), backed by SQL, with Power BI queries on top.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "ingest": "tsx src/etl/cli.ts",
+    "ingest:sample": "tsx src/etl/cli.ts data/sample/anp-sample.csv"
+  },
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

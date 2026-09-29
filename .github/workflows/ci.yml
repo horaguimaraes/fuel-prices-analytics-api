@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Smoke test the built server against the sample data
+        run: |
+          DB_PATH=/tmp/ci.db npm run ingest:sample
+          DB_PATH=/tmp/ci.db PORT=3100 node dist/server.js &
+          for i in $(seq 1 20); do curl -fs http://localhost:3100/health && break || sleep 1; done
+          curl -fs "http://localhost:3100/api/v1/prices/summary?product=GASOLINA" | grep -q '"observations"'

@@ -1,0 +1,12 @@
+node_modules
+dist
+downloads
+*.db
+*.db-shm
+*.db-wal
+.git
+.github
+tests
+powerbi
+docs
+coverage

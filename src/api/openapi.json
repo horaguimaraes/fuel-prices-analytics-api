@@ -1,0 +1,708 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Fuel Prices Analytics API",
+    "version": "1.0.0",
+    "description": "Analytics over the ANP (Brazil) fuel price survey. Prices are in BRL per the unit of each product (usually R$/litre). Data comes from the ANP open data portal.\n\nIf the server was started with `API_KEY`, every `/api/v1` request must send it in the `x-api-key` header."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Reference"
+    },
+    {
+      "name": "Prices"
+    },
+    {
+      "name": "Stations"
+    },
+    {
+      "name": "Insights"
+    },
+    {
+      "name": "Export",
+      "description": "Flat tables for BI tools such as Power BI"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    },
+    "parameters": {
+      "product": {
+        "name": "product",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": "GASOLINA",
+        "description": "Product name as returned by `/products` (case-insensitive)."
+      },
+      "productOptional": {
+        "name": "product",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "ETANOL"
+      },
+      "state": {
+        "name": "state",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 2
+        },
+        "example": "RJ"
+      },
+      "stateRequired": {
+        "name": "state",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 2
+        },
+        "example": "RJ"
+      },
+      "city": {
+        "name": "city",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "NITEROI"
+      },
+      "brand": {
+        "name": "brand",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": "VIBRA"
+      },
+      "from": {
+        "name": "from",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        },
+        "description": "Collection date, inclusive."
+      },
+      "to": {
+        "name": "to",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        },
+        "description": "Collection date, inclusive."
+      },
+      "minStations": {
+        "name": "minStations",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": "Drop groups with fewer distinct stations than this."
+      },
+      "format": {
+        "name": "format",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "json",
+            "csv"
+          ],
+          "default": "json"
+        }
+      },
+      "cnpj": {
+        "name": "cnpj",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^\\d{14}$"
+        },
+        "example": "00000000000000"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {}
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid parameters",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid API key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKey": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Liveness and database check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is up"
+          }
+        }
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Dataset overview: counts, date range, states, last ingest",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": [
+          "Reference"
+        ],
+        "summary": "Products with unit, observation count and date range",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/prices/summary": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Min, average, median and max price for a slice of the data",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/product"
+          },
+          {
+            "$ref": "#/components/parameters/state"
+          },
+          {
+            "$ref": "#/components/parameters/city"
+          },
+          {
+            "$ref": "#/components/parameters/brand"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/prices/trend": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Average price over time with a 7-period moving average",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/product"
+          },
+          {
+            "$ref": "#/components/parameters/state"
+          },
+          {
+            "$ref": "#/components/parameters/city"
+          },
+          {
+            "$ref": "#/components/parameters/brand"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week"
+              ],
+              "default": "day"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/prices/by-state": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "States ranked from cheapest to most expensive",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/product"
+          },
+          {
+            "$ref": "#/components/parameters/city"
+          },
+          {
+            "$ref": "#/components/parameters/brand"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/minStations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/prices/by-brand": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Brands (bandeiras) ranked by average price",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/product"
+          },
+          {
+            "$ref": "#/components/parameters/state"
+          },
+          {
+            "$ref": "#/components/parameters/city"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/minStations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/prices/by-city": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Cities of one state ranked by average price",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/product"
+          },
+          {
+            "$ref": "#/components/parameters/stateRequired"
+          },
+          {
+            "$ref": "#/components/parameters/brand"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/minStations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/stations/cheapest": {
+      "get": {
+        "tags": [
+          "Stations"
+        ],
+        "summary": "Stations by their latest price, cheapest first (or most expensive with order=desc)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/product"
+          },
+          {
+            "$ref": "#/components/parameters/state"
+          },
+          {
+            "$ref": "#/components/parameters/city"
+          },
+          {
+            "$ref": "#/components/parameters/brand"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/stations/{cnpj}": {
+      "get": {
+        "tags": [
+          "Stations"
+        ],
+        "summary": "One station with its latest price per product",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/cnpj"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/stations/{cnpj}/prices": {
+      "get": {
+        "tags": [
+          "Stations"
+        ],
+        "summary": "Price history of one station",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/cnpj"
+          },
+          {
+            "$ref": "#/components/parameters/productOptional"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/insights/ethanol-parity": {
+      "get": {
+        "tags": [
+          "Insights"
+        ],
+        "summary": "Ethanol price as % of gasoline per state (the 70% rule of thumb)",
+        "description": "Ethanol has about 70% of gasoline's energy content, so it is cheaper per km when its price is below 70% of gasoline's. Only states with both products are returned, cheapest ratio first.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/state"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/export/state-daily": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "Daily price aggregates by state and product (fact table for BI)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/productOptional"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/format"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON `{data, count}` or CSV",
+            "content": {
+              "application/json": {},
+              "text/csv": {}
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/export/stations": {
+      "get": {
+        "tags": [
+          "Export"
+        ],
+        "summary": "Station dimension table (for BI)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/state"
+          },
+          {
+            "$ref": "#/components/parameters/brand"
+          },
+          {
+            "$ref": "#/components/parameters/format"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON `{data, count}` or CSV",
+            "content": {
+              "application/json": {},
+              "text/csv": {}
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  }
+}

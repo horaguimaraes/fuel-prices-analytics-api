@@ -1,0 +1,80 @@
+// =====================================================================================
+// DAX measures for the fuel price model.
+//
+// Model (star schema):
+//   DimDate[Date]     1 ──< FactStateDaily[date]
+//   DimState[state]   1 ──< FactStateDaily[state]
+//   DimProduct[name]  1 ──< FactStateDaily[product]
+//   DimState[state]   1 ──< DimStation[state]   (optional, for station-level pages)
+// Mark DimDate as the date table. Hide the raw columns of FactStateDaily.
+// =====================================================================================
+
+// --- Base measures ------------------------------------------------------------------
+
+Observations = SUM ( FactStateDaily[observations] )
+
+// FactStateDaily already holds daily averages, so a plain AVERAGE would give every
+// state-day the same weight. Weighting by observations gives the true average price.
+Avg Price =
+DIVIDE (
+    SUMX ( FactStateDaily, FactStateDaily[avg] * FactStateDaily[observations] ),
+    [Observations]
+)
+
+Min Price = MIN ( FactStateDaily[min] )
+
+Max Price = MAX ( FactStateDaily[max] )
+
+// --- Comparisons --------------------------------------------------------------------
+
+// How far the selected state is from the national average, in %.
+Vs National % =
+VAR National = CALCULATE ( [Avg Price], ALL ( DimState ) )
+RETURN DIVIDE ( [Avg Price], National ) - 1
+
+Avg Price Prev Week =
+CALCULATE ( [Avg Price], DATEADD ( DimDate[Date], -7, DAY ) )
+
+Change vs Prev Week =
+VAR Previous = [Avg Price Prev Week]
+RETURN IF ( NOT ISBLANK ( Previous ), [Avg Price] - Previous )
+
+Change vs Prev Week % =
+DIVIDE ( [Change vs Prev Week], [Avg Price Prev Week] )
+
+// --- Trend --------------------------------------------------------------------------
+
+// Smooths day-to-day noise in the line chart.
+Avg Price 7d Moving =
+AVERAGEX (
+    DATESINPERIOD ( DimDate[Date], MAX ( DimDate[Date] ), -7, DAY ),
+    [Avg Price]
+)
+
+// --- Rankings -----------------------------------------------------------------------
+
+// 1 = cheapest state for the product currently selected.
+Rank Cheapest State =
+IF (
+    HASONEVALUE ( DimState[state] ),
+    RANKX ( ALL ( DimState[state] ), [Avg Price], , ASC, DENSE )
+)
+
+// --- KPI cards ----------------------------------------------------------------------
+
+Latest Date = MAX ( FactStateDaily[date] )
+
+Cheapest State =
+VAR Ranked =
+    ADDCOLUMNS ( ALL ( DimState[state] ), "@avg", [Avg Price] )
+VAR NonBlank = FILTER ( Ranked, NOT ISBLANK ( [@avg] ) )
+RETURN
+    MINX ( TOPN ( 1, NonBlank, [@avg], ASC ), DimState[state] )
+
+// --- Ethanol vs gasoline (uses the EthanolParity table) -------------------------------
+
+// Number of states where ethanol is the cheaper choice per km (ratio below 70%).
+States Where Ethanol Wins =
+CALCULATE ( COUNTROWS ( EthanolParity ), EthanolParity[cheaperPerKm] = "ETANOL" )
+
+Ethanol % of Gasoline = AVERAGE ( EthanolParity[ratioPct] ) / 100
