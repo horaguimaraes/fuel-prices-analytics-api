@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anpUrl } from '../src/etl/download.js';
+import { anpUrls } from '../src/etl/download.js';
 import {
   decodeBytes, mapHeader, normalizeCnpj, parseCsv, parseDate, parseDecimal, parseRow,
 } from '../src/etl/parse.js';
@@ -106,18 +106,18 @@ describe('parseRow', () => {
   });
 });
 
-describe('anpUrl', () => {
+describe('anpUrls', () => {
+  const base = 'https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc';
   it('builds the rolling 4-week URL', () => {
-    expect(anpUrl('last4weeks:diesel-gnv')).toBe(
-      'https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/qus/ultimas-4-semanas-diesel-gnv.csv'
-    );
+    expect(anpUrls('last4weeks:diesel-gnv')).toEqual([`${base}/qus/ultimas-4-semanas-diesel-gnv.csv`]);
   });
-  it('builds a monthly URL', () => {
-    expect(anpUrl('2026-08:gasolina-etanol')).toBe(
-      'https://www.gov.br/anp/pt-br/centrais-de-conteudo/dados-abertos/arquivos/shpc/dsan/2026/08-dados-abertos-precos-2026-08-gasolina-etanol.csv'
-    );
+  it('offers both monthly naming schemes ANP has used, oldest scheme first', () => {
+    expect(anpUrls('2025-03:gasolina-etanol')).toEqual([
+      `${base}/dsan/2025/precos-gasolina-etanol-03.csv`,
+      `${base}/dsan/2025/03-dados-abertos-precos-2025-03-gasolina-etanol.csv`,
+    ]);
   });
   it.each(['nope', '2026-13:glp', '2026-08:coal', ':glp', '2026-8:glp'])('rejects %j', (spec) => {
-    expect(() => anpUrl(spec)).toThrow();
+    expect(() => anpUrls(spec)).toThrow();
   });
 });

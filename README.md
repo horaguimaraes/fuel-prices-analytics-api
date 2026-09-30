@@ -64,7 +64,7 @@ Load real, current data straight from ANP:
 
 ```bash
 npm run ingest -- --anp last4weeks:gasolina-etanol --anp last4weeks:diesel-gnv
-npm run ingest -- --anp 2026-08:gasolina-etanol       # a specific month (2023 onward)
+npm run ingest -- --anp 2025-03:gasolina-etanol       # a specific month (tries both ANP naming schemes)
 npm run ingest -- path/to/any-anp-file.csv
 ```
 
@@ -148,7 +148,7 @@ The container loads the bundled sample on first start. To use real data, run the
 ## Limitations
 
 - **Coverage.** ANP prices come from a sample of stations each week, not every station, and the average is over observations, not sales volume.
-- **CSV only.** The semester archives before 2023 are ZIP files; unzip them first. Monthly files exist from 2023.
+- **CSV only.** Monthly files exist for 2023-01 to 2025-12 and for some recent months, but ANP does not publish every month (July 2026 was missing). For gaps, use the semester archive (`/dsas/ca/ca-YYYY-0N.zip`); it is a ZIP, so unzip it first. The `--anp` downloader tries every known monthly URL scheme before giving up.
 - **SQLite** is a single-writer database, ideal here (read-heavy, batch-loaded). The SQL is standard enough to move to PostgreSQL; the `node:sqlite` module is also still marked experimental by Node, which prints a warning at startup.
 - **LPG** is priced per 13 kg cylinder rather than per litre; each product carries its own `unit`.
 

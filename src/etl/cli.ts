@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { loadConfig } from '../config.js';
 import { openDatabase } from '../db/connection.js';
-import { anpUrl, download } from './download.js';
+import { anpUrls, downloadFirst } from './download.js';
 import { ingestCsv } from './ingest.js';
 import { decodeBytes } from './parse.js';
 
@@ -32,12 +32,12 @@ async function main(): Promise<number> {
   if (values.help) { console.log(HELP); return 0; }
 
   const files = [...positionals];
-  const urls = [...(values.anp ?? []).map(anpUrl), ...(values.url ?? [])];
-  if (!files.length && !urls.length) { console.error(HELP); return 1; }
+  const downloads = [...(values.anp ?? []).map(anpUrls), ...(values.url ?? []).map((u) => [u])];
+  if (!files.length && !downloads.length) { console.error(HELP); return 1; }
 
-  for (const url of urls) {
-    console.log(`Downloading ${url}`);
-    files.push(await download(url, 'downloads'));
+  for (const candidates of downloads) {
+    console.log(`Downloading ${candidates[0]}`);
+    files.push(await downloadFirst(candidates, 'downloads'));
   }
 
   const db = openDatabase(values.db ?? loadConfig().dbPath);
